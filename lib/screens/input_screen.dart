@@ -1,123 +1,133 @@
 import 'package:flutter/material.dart';
-import 'package:crop_recommendation_system/models/crop_model.dart';
-import 'package:crop_recommendation_system/services/csv_services.dart';
-import 'package:crop_recommendation_system/services/recommendation_service.dart';
-import 'package:crop_recommendation_system/screens/result_screen.dart';
+import '../services/rf_service.dart';
+import 'result_screen.dart';
+import '../models/crop_model.dart';
 
 class InputScreen extends StatefulWidget {
-  const InputScreen({Key? key}) : super(key: key);
+  const InputScreen({super.key});
+
 
   @override
   State<InputScreen> createState() => _InputScreenState();
 }
 
 class _InputScreenState extends State<InputScreen> {
+  final n = TextEditingController();
+  final p = TextEditingController();
+  final k = TextEditingController();
+  final temp = TextEditingController();
+  final hum = TextEditingController();
+  final ph = TextEditingController();
+  final rain = TextEditingController();
 
-  final _formKey = GlobalKey<FormState>();
+  List<CropResult> predictions = [];
 
-  final TextEditingController nController = TextEditingController();
-  final TextEditingController pController = TextEditingController();
-  final TextEditingController kController = TextEditingController();
-  final TextEditingController tempController = TextEditingController();
-  final TextEditingController humidityController = TextEditingController();
-  final TextEditingController phController = TextEditingController();
-  final TextEditingController rainController = TextEditingController();
+  bool isLoading = false;
 
-  final CsvService _csvService = CsvService();
-  final RecommendationService _recommendationService = RecommendationService();
+  bool validateInput() {
+    double? N = double.tryParse(n.text);
+    double? P = double.tryParse(p.text);
+    double? K = double.tryParse(k.text);
+    double? tempVal = double.tryParse(temp.text);
+    double? humVal = double.tryParse(hum.text);
+    double? phVal = double.tryParse(ph.text);
+    double? rainVal = double.tryParse(rain.text);
 
-  bool _isLoading = false;
+    if (N == null || N < 0 || N > 140) return false;
+    if (P == null || P < 5 || P > 145) return false;
+    if (K == null || K < 5 || K > 205) return false;
+    if (tempVal == null || tempVal < 8 || tempVal > 44) return false;
+    if (humVal == null || humVal < 14 || humVal > 99) return false;
+    if (phVal == null || phVal < 3.5 || phVal > 9.9) return false;
+    if (rainVal == null || rainVal < 20 || rainVal > 300) return false;
 
-  @override
-  void dispose() {
-    nController.dispose();
-    pController.dispose();
-    kController.dispose();
-    tempController.dispose();
-    humidityController.dispose();
-    phController.dispose();
-    rainController.dispose();
-    super.dispose();
+    return true;
   }
 
-  Future<void> _handleRecommendation() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> predict() async {
+    try {
+      if (!validateInput()) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("ইনপুট সঠিক নয় বা সীমার বাইরে")),
+        );
+        return;
+      }
 
-    FocusScope.of(context).unfocus(); // keyboard hide
+      if (n.text.isEmpty ||
+          p.text.isEmpty ||
+          k.text.isEmpty ||
+          temp.text.isEmpty ||
+          hum.text.isEmpty ||
+          ph.text.isEmpty ||
+          rain.text.isEmpty) {
 
-    setState(() => _isLoading = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("সব ফিল্ড পূরণ কর")),
+        );
+        return;
+      }
 
-    final crops = await _csvService.loadCrops();
+      setState(() => isLoading = true);
 
-    CropModel input = CropModel(
-      n: double.parse(nController.text),
-      p: double.parse(pController.text),
-      k: double.parse(kController.text),
-      temperature: double.parse(tempController.text),
-      humidity: double.parse(humidityController.text),
-      ph: double.parse(phController.text),
-      rainfall: double.parse(rainController.text),
-      label: "",
-    );
+      final results = await RFService.getPrediction(
+        N: double.parse(n.text),
+        P: double.parse(p.text),
+        K: double.parse(k.text),
+        temperature: double.parse(temp.text),
+        humidity: double.parse(hum.text),
+        ph: double.parse(ph.text),
+        rainfall: double.parse(rain.text),
+      );
 
-    String result =
-    _recommendationService.recommendCrop(crops, input);
+      setState(() {
+        predictions = results;
+        isLoading = false;
+      });
 
-    setState(() => _isLoading = false);
+      if (predictions.isNotEmpty) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ResultScreen(results: predictions),
+          ),
+        );
+      } else {
+        print("No prediction data");
+      }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("সফলভাবে সুপারিশ তৈরি হয়েছে 🌾"),
-        backgroundColor: Colors.green,
-      ),
-    );
+    } catch (e) {
+      setState(() => isLoading = false);
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ResultScreen(cropName: result),
-      ),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
   }
 
-  void _clearFields() {
-    nController.clear();
-    pController.clear();
-    kController.clear();
-    tempController.clear();
-    humidityController.clear();
-    phController.clear();
-    rainController.clear();
-  }
-
-  Widget _buildInputField(
-      String label,
-      String hint,
-      TextEditingController controller,
-      TextInputAction action,
-      ) {
+  Widget field(String label, IconData icon, TextEditingController c, String range) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: TextFormField(
-        controller: controller,
-        textInputAction: action,
+      child: TextField(
+        controller: c,
         keyboardType: TextInputType.number,
         decoration: InputDecoration(
           labelText: label,
-          hintText: hint,
+          hintText: "Range (${range.replaceAll("Range: ", "")})",
+
+          prefixIcon: Icon(icon, color: Colors.green),
+
+          filled: true,
+          fillColor: Colors.white,
+
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(15),
+          ),
+
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(color: Colors.green, width: 2),
           ),
         ),
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return "$label লিখুন";
-          }
-          if (double.tryParse(value) == null) {
-            return "সঠিক সংখ্যা লিখুন";
-          }
-          return null;
-        },
       ),
     );
   }
@@ -125,47 +135,88 @@ class _InputScreenState extends State<InputScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Crop Recommendation System", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 30, ),),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _clearFields,
-          )
-        ],
-      ),
-      body: SingleChildScrollView(
+      body: Container(
         padding: const EdgeInsets.all(16),
-        child: Form(
-          autovalidateMode: AutovalidateMode.onUserInteraction,
-          key: _formKey,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF56ab2f), Color(0xFFa8e063)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: SafeArea(
           child: Column(
             children: [
-
-              _buildInputField("নাইট্রোজেন (N)", "উদাহরণ: 90", nController, TextInputAction.next),
-              _buildInputField("ফসফরাস (P)", "উদাহরণ: 40", pController, TextInputAction.next),
-              _buildInputField("পটাশিয়াম (K)", "উদাহরণ: 45", kController, TextInputAction.next),
-              _buildInputField("তাপমাত্রা (°C)", "উদাহরণ: 25", tempController, TextInputAction.next),
-              _buildInputField("আর্দ্রতা (%)", "উদাহরণ: 80", humidityController, TextInputAction.next),
-              _buildInputField("মাটির pH", "উদাহরণ: 6.5", phController, TextInputAction.next),
-              _buildInputField("বৃষ্টিপাত (mm)", "উদাহরণ: 200", rainController, TextInputAction.done),
-
+              const Text(
+                "Crop Recommendation",
+                style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white),
+              ),
               const SizedBox(height: 20),
 
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleRecommendation,
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                    "সুপারিশ দেখুন",
-                    style: TextStyle(fontSize: 16),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: ListView(
+                    children: [
+                      field("নাইট্রোজেন (N)", Icons.science, n, "Range: 0 - 140 kg/ha"),
+                      field("ফসফরাস (P)", Icons.science, p, "Range: 5 - 145 kg/ha"),
+                      field("পটাশিয়াম (K)", Icons.science, k, "Range: 5 - 205 kg/ha"),
+                      field("তাপমাত্রা", Icons.thermostat, temp, "Range: 8 - 44 C"),
+                      field("আদ্রতা", Icons.water_drop, hum, "Range: 14 - 99 %"),
+                      field("pH মান", Icons.grass, ph, "Range: 3.5 - 9.9"),
+                      field("বৃষ্টিপাত", Icons.cloud, rain, "Range: 20 - 300 mm"),
+
+                      const SizedBox(height: 20),
+
+                      ElevatedButton(
+                        onPressed: predict,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.all(15),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          backgroundColor: Colors.green,
+                        ),
+                        child: isLoading
+                            ? const CircularProgressIndicator(
+                            color: Colors.white)
+                            : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.agriculture, color: Colors.white),
+                            SizedBox(width: 8),
+                            Text(
+                              "ফসল দেখুন",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    ],
                   ),
                 ),
-              )
+              ),
+              const SizedBox(height: 10),
+
+              const Text(
+                "Developed by S.k Shuvo",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
             ],
           ),
         ),
