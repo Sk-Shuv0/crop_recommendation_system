@@ -1,10 +1,22 @@
 import 'package:flutter/material.dart';
 import '../models/crop_model.dart';
+import '../models/prediction_response.dart';
+import '../widgets/feature_importance_card.dart';
+import '../widgets/pie_chart_widget.dart';
+import '../widgets/ai_explanation_card.dart';
 
 class ResultScreen extends StatelessWidget {
-  final List<CropResult> results;
+  final PredictionResponse response;
 
-  const ResultScreen({super.key, required this.results});
+  const ResultScreen({
+    super.key,
+    required this.response,
+  });
+
+  List<CropResult> get results => response.results;
+
+  List<FeatureImportance> get explanation => response.explanation;
+
   String getImage(String crop) => "assets/images/$crop.png";
 
   String getDescription(String crop) {
@@ -204,6 +216,60 @@ class ResultScreen extends StatelessWidget {
     }
     final best = results[0];
 
+    Widget buildFeatureImportance() {
+      return Card(
+        elevation: 4,
+        margin: const EdgeInsets.symmetric(vertical: 10),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "📊 Feature Importance (XAI)",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 15),
+
+              ...explanation.map((e) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        e.feature,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      const SizedBox(height: 5),
+
+                      LinearProgressIndicator(
+                        value: e.impact,
+                        minHeight: 10,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+
+                      const SizedBox(height: 4),
+
+                      Text(
+                        "${(e.impact * 100).toStringAsFixed(1)} %",
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -314,6 +380,27 @@ class ResultScreen extends StatelessWidget {
               Text(getFertilizer(best.crop)),
           
               const Divider(),
+
+              FeatureImportanceCard(
+                explanation: explanation,
+              ),
+
+              const SizedBox(height: 15),
+
+              PieChartWidget(
+                explanation: explanation,
+              ),
+
+              const SizedBox(height: 15),
+
+              AIExplanationCard(
+                cropName: getBanglaName(best.crop),
+                explanation: explanation,
+              ),
+
+              const Divider(),
+
+              // buildFeatureImportance(),
 
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,

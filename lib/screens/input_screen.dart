@@ -53,23 +53,9 @@ class _InputScreenState extends State<InputScreen> {
         return;
       }
 
-      if (n.text.isEmpty ||
-          p.text.isEmpty ||
-          k.text.isEmpty ||
-          temp.text.isEmpty ||
-          hum.text.isEmpty ||
-          ph.text.isEmpty ||
-          rain.text.isEmpty) {
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("সব ফিল্ড পূরণ কর")),
-        );
-        return;
-      }
-
       setState(() => isLoading = true);
 
-      final results = await RFService.getPrediction(
+      final response = await RecommendationService.getPrediction(
         N: double.parse(n.text),
         P: double.parse(p.text),
         K: double.parse(k.text),
@@ -79,27 +65,21 @@ class _InputScreenState extends State<InputScreen> {
         rainfall: double.parse(rain.text),
       );
 
-      setState(() {
-        predictions = results;
-        isLoading = false;
-      });
+      setState(() => isLoading = false);
 
-      if (predictions.isNotEmpty) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ResultScreen(results: predictions),
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ResultScreen(
+            response: response,
           ),
-        );
-      } else {
-        print("No prediction data");
-      }
-
+        ),
+      );
     } catch (e) {
       setState(() => isLoading = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
+        SnackBar(content: Text(e.toString())),
       );
     }
   }
