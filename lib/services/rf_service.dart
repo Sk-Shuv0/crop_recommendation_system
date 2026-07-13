@@ -4,7 +4,8 @@ import '../models/prediction_response.dart';
 
 class RecommendationService {
 
-  static const String baseUrl = "http://127.0.0.1:8000";
+  static const String baseUrl =
+      "https://crop-recommendation-api-e11d.onrender.com";
 
   static Future<PredictionResponse> getPrediction({
     required double N,

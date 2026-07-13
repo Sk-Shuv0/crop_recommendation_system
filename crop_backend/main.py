@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pickle
 import pandas as pd
-# import shap
+import shap
 
 app = FastAPI()
 
@@ -21,7 +21,7 @@ app.add_middleware(
 model = pickle.load(open("model.pkl", "rb"))
 
 # SHAP Explainer
-# explainer = shap.TreeExplainer(model)
+explainer = shap.TreeExplainer(model)
 
 # Feature names
 feature_names = [
@@ -92,39 +92,38 @@ def predict(data: Input):
     # SHAP Explanation
     # ==========================
 
-    # shap_exp = explainer(features)
-    #
-    # values = shap_exp.values
-    #
-    # # Shape:
-    # # (samples, features) অথবা
-    # # (samples, features, classes)
-    #
-    # if values.ndim == 3:
-    #
-    #     top_crop = top3[0]["crop"]
-    #     class_index = list(classes).index(top_crop)
-    #
-    #     feature_impacts = values[0, :, class_index]
-    #
-    # else:
-    #
-    #     feature_impacts = values[0]
-    #
-    # explanation = []
-    #
-    # for feature, impact in zip(feature_names, feature_impacts):
-    #
-    #     explanation.append({
-    #         "feature": feature,
-    #         "impact": round(float(abs(impact)), 6)
-    #     })
-    #
-    # explanation.sort(
-    #     key=lambda x: x["impact"],
-    #     reverse=True
-    # )
+    shap_exp = explainer(features)
+
+    values = shap_exp.values
+
+    # Shape:
+    # (samples, features) অথবা
+    # (samples, features, classes)
+
+    if values.ndim == 3:
+
+        top_crop = top3[0]["crop"]
+        class_index = list(classes).index(top_crop)
+
+        feature_impacts = values[0, :, class_index]
+
+    else:
+
+        feature_impacts = values[0]
+
     explanation = []
+
+    for feature, impact in zip(feature_names, feature_impacts):
+
+        explanation.append({
+            "feature": feature,
+            "impact": round(float(abs(impact)), 6)
+        })
+
+    explanation.sort(
+        key=lambda x: x["impact"],
+        reverse=True
+    )
 
     return {
         "results": top3,
