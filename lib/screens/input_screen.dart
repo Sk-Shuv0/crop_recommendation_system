@@ -186,17 +186,17 @@ class _InputScreenState extends State<InputScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
-
-              const Text(
-                "Developed by S.k Shuvo",
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
+              // const SizedBox(height: 10),
+              //
+              // const Text(
+              //   "Developed by S.k Shuvo",
+              //   style: TextStyle(
+              //     fontSize: 14,
+              //     fontWeight: FontWeight.bold,
+              //     color: Colors.black,
+              //     fontStyle: FontStyle.italic,
+              //   ),
+              // ),
             ],
           ),
         ),
